@@ -36,14 +36,15 @@ pip install -r requirements.txt
 - Monitor a custom host (1.1.1.1) every 5 seconds for 2 minutes, saving to custom_log.txt:
   ```bash
   python monitor_connectivity.py --hosts 1.1.1.1 --interval 5 --duration 120 --log-file custom_log.txt
+  python monitor_connectivity.py --hosts 1.1.1.1 --interval 500 --duration 60
   ```
   This will monitor 1.1.1.1 every 5 seconds for 2 minutes and save the output to custom_log.txt.
 
 - Monitor multiple hosts (8.8.8.8, 1.1.1.1, and google.com) every 10 seconds for 5 minutes:
   ```bash
-  python monitor_connectivity.py --hosts 8.8.8.8 1.1.1.1 google.com --interval 10 --duration 300
+  python monitor_connectivity.py --hosts 8.8.8.8 1.1.1.1 google.com --interval 100 --duration 300
   ```
-  This monitors 8.8.8.8, 1.1.1.1, and google.com every 10 seconds for 5 minutes.
+  This monitors 8.8.8.8, 1.1.1.1, and google.com every 10 mseconds for 5 minutes.
 
 ## Analyzing Connectivity Logs
 - Analyze the default log file (internet_connectivity_log.txt):

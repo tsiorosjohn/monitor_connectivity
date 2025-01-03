@@ -46,6 +46,7 @@ def log_status(log_file, timestamp, host, status, latency=None, packet_loss=None
 def monitor_connectivity(log_file, hosts, interval, duration):
     """
     Monitors internet connectivity for the specified hosts and logs results.
+    The interval is now in milliseconds.
     """
     start_time = time.time()
     while time.time() - start_time < duration:
@@ -54,13 +55,15 @@ def monitor_connectivity(log_file, hosts, interval, duration):
             latency, packet_loss = ping_host(host)
             status = latency is not None
             log_status(log_file, timestamp, host, status, latency, packet_loss)
-        time.sleep(interval)
+
+        # Convert interval to seconds (milliseconds / 1000)
+        time.sleep(interval / 1000.0)  # Sleep accepts seconds, so convert milliseconds to seconds
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Internet Connectivity Monitor")
     parser.add_argument("--hosts", nargs="+", default=["8.8.8.8", "1.1.1.1"], help="List of hosts to monitor (default: Google and Cloudflare DNS)")
-    parser.add_argument("--interval", type=int, default=10, help="Interval between checks in seconds (default: 10)")
+    parser.add_argument("--interval", type=int, default=1000, help="Interval between checks in milliseconds (default: 1000 ms)")
     parser.add_argument("--duration", type=int, default=3600, help="Monitoring duration in seconds (default: 1 hour)")
     parser.add_argument("--log-file", type=str, default="internet_connectivity_log.txt", help="Path to the log file (default: internet_connectivity_log.txt)")
 
@@ -70,4 +73,4 @@ if __name__ == "__main__":
 
     print(f"Starting monitoring for hosts: {', '.join(args.hosts)}")
     monitor_connectivity(args.log_file, args.hosts, args.interval, args.duration)
-    print(f"Monitoring completed. Log saved to {args.log_file}.")
+    print(f"Monitoring completed. Logs saved to {args.log_file}.")
