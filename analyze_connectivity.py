@@ -1,84 +1,71 @@
 import matplotlib.pyplot as plt
 import datetime
 import re
-
-LOG_FILE = "internet_connectivity_log.txt"
+import argparse
 
 
 def parse_log(file_path):
     """
-    Parses the log file and extracts timestamps, statuses, and latencies.
-    Returns a list of tuples: (timestamp, status, latency).
+    Parses the log file and extracts timestamps, hosts, statuses, latencies, and packet losses.
+    Returns a dictionary keyed by host, each containing a list of (timestamp, status, latency, packet_loss) tuples.
     """
-    log_data = []
+    log_data = {}
     with open(file_path, "r") as file:
         for line in file:
-            match = re.search(r"(.*) - (Online|Offline) - Latency: (\S+)", line)
+            match = re.search(r"(.*) - (.*) - (Online|Offline) - Latency: (\S+) ms - Packet Loss: (\S+)%", line)
             if match:
                 timestamp = datetime.datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
-                status = match.group(2) == "Online"
-                latency = None if match.group(3) == "N/A" else float(match.group(3))
-                log_data.append((timestamp, status, latency))
+                host = match.group(2)
+                status = match.group(3) == "Online"
+                latency = None if match.group(4) == "N/A" else float(match.group(4))
+                packet_loss = None if match.group(5) == "N/A" else float(match.group(5))
+
+                if host not in log_data:
+                    log_data[host] = []
+                log_data[host].append((timestamp, status, latency, packet_loss))
     return log_data
 
 
-def generate_summary(log_data):
+def plot_latency_and_packet_loss(log_data):
     """
-    Generates a summary of the connectivity log.
+    Plots latency and packet loss for all monitored hosts.
     """
-    total_checks = len(log_data)
-    online_checks = sum(1 for _, status, _ in log_data if status)
-    offline_checks = total_checks - online_checks
-    average_latency = (
-            sum(latency for _, status, latency in log_data if status and latency is not None)
-            / max(online_checks, 1)
-    )
+    plt.figure(figsize=(12, 8))
 
-    summary = {
-        "Total Checks": total_checks,
-        "Online Checks": online_checks,
-        "Offline Checks": offline_checks,
-        "Uptime Percentage": (online_checks / total_checks) * 100 if total_checks > 0 else 0,
-        "Average Latency (ms)": average_latency,
-    }
-    return summary
+    for host, data in log_data.items():
+        timestamps = [entry[0] for entry in data if entry[2] is not None]
+        latencies = [entry[2] for entry in data if entry[2] is not None]
+        packet_losses = [entry[3] for entry in data if entry[3] is not None]
+        offline_timestamps = [entry[0] for entry in data if not entry[1]]
 
+        # Plot latency
+        plt.plot(timestamps, latencies, label=f"{host} (Latency)", marker="o", color="blue", linewidth=1)
 
-def plot_latency(log_data):
-    """
-    Plots latency over time.
-    """
-    timestamps = [timestamp for timestamp, status, latency in log_data if latency is not None]
-    latencies = [latency for _, status, latency in log_data if latency is not None]
+        # Plot packet loss as a secondary axis
+        plt.scatter(timestamps, packet_losses, label=f"{host} (Packet Loss)", color="green", marker="x", zorder=5)
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(timestamps, latencies, marker="o", label="Latency (ms)")
-    plt.title("Internet Latency Over Time")
+        # Plot offline periods
+        plt.scatter(offline_timestamps, [0] * len(offline_timestamps), label=f"{host} (Offline)", color="red", marker="x")
+
+    plt.title("Internet Latency, Packet Loss, and Offline Periods")
     plt.xlabel("Time")
     plt.ylabel("Latency (ms)")
-    plt.grid(True)
     plt.legend()
+    plt.grid(True)
     plt.tight_layout()
-    plt.savefig("latency_plot.png")
+    plt.savefig("latency_and_packet_loss_plot.png")
     plt.show()
 
 
-def main():
-    log_data = parse_log(LOG_FILE)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Internet Connectivity Log Analyzer")
+    parser.add_argument("--log-file", type=str, default="internet_connectivity_log.txt", help="Path to the log file (default: internet_connectivity_log.txt)")
+
+    args = parser.parse_args()
+
+    log_data = parse_log(args.log_file)
     if not log_data:
         print("No data found in the log file.")
-        return
-
-    # Generate and display summary
-    summary = generate_summary(log_data)
-    print("Internet Connectivity Summary:")
-    for key, value in summary.items():
-        print(f"{key}: {value}")
-
-    # Generate latency plot
-    plot_latency(log_data)
-    print("Latency plot saved as 'latency_plot.png'.")
-
-
-if __name__ == "__main__":
-    main()
+    else:
+        plot_latency_and_packet_loss(log_data)
+        print("Latency and packet loss plot saved as 'latency_and_packet_loss_plot.png'.")

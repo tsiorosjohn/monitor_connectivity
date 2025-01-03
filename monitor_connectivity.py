@@ -3,21 +3,15 @@ import time
 import datetime
 import subprocess
 import platform
-
-# Configuration
-CHECK_INTERVAL = 1  # Time in seconds between checks
-MONITOR_DURATION = 3600  # Monitoring duration in seconds (1 hour)
-LOG_FILE = "internet_connectivity_log.txt"
-PING_HOST = "8.8.8.8"  # Host to ping (Google DNS)
+import argparse
 
 
-def ping_host(host=PING_HOST):
+def ping_host(host):
     """
-    Pings a host and returns the latency in milliseconds.
-    If ping fails, returns None.
+    Pings a host and returns the latency in milliseconds and packet loss percentage.
+    If ping fails, returns None for both latency and packet loss.
     """
     try:
-        # Platform-specific ping command
         if platform.system().lower() == "windows":
             cmd = ["ping", "-n", "1", host]
         else:  # macOS and Linux
@@ -25,45 +19,55 @@ def ping_host(host=PING_HOST):
 
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
-            # Extract latency from the ping output
             output = result.stdout
             if platform.system().lower() == "windows":
                 latency = output.split("Average = ")[-1].split("ms")[0].strip()
+                packet_loss = 0  # No packet loss if ping is successful on Windows
             else:
                 latency = output.split("time=")[-1].split(" ms")[0].strip()
-            return float(latency)
+                packet_loss = output.split("packet loss")[0].split(",")[-2].strip().split()[0]  # Get packet loss percentage
+            return float(latency), float(packet_loss)  # Return both latency and packet loss
         else:
-            return None
-    except Exception as e:
-        return None
+            return None, None  # Return None for both if ping fails
+    except Exception:
+        return None, None
 
 
-def log_status(status, latency=None):
+def log_status(log_file, timestamp, host, status, latency=None, packet_loss=None):
     """
-    Logs the connectivity status with latency and timestamp.
+    Logs the connectivity status with latency, packet loss, and timestamp.
     """
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     latency_info = f"Latency: {latency} ms" if latency is not None else "Latency: N/A"
-    with open(LOG_FILE, "a") as log_file:
-        log_file.write(f"{timestamp} - {'Online' if status else 'Offline'} - {latency_info}\n")
-    print(f"{timestamp} - {'Online' if status else 'Offline'} - {latency_info}")
+    packet_loss_info = f"Packet Loss: {packet_loss}%" if packet_loss is not None else "Packet Loss: N/A"
+    with open(log_file, "a") as log_file:
+        log_file.write(f"{timestamp} - {host} - {'Online' if status else 'Offline'} - {latency_info} - {packet_loss_info}\n")
 
 
-def monitor_connectivity():
+def monitor_connectivity(log_file, hosts, interval, duration):
     """
-    Monitors internet connectivity and logs latency for a specified duration.
+    Monitors internet connectivity for the specified hosts and logs results.
     """
     start_time = time.time()
-    while time.time() - start_time < MONITOR_DURATION:
-        latency = ping_host()
-        status = latency is not None
-        log_status(status, latency)
-        time.sleep(CHECK_INTERVAL)
+    while time.time() - start_time < duration:
+        for host in hosts:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            latency, packet_loss = ping_host(host)
+            status = latency is not None
+            log_status(log_file, timestamp, host, status, latency, packet_loss)
+        time.sleep(interval)
 
 
 if __name__ == "__main__":
-    if os.path.exists(LOG_FILE):
-        os.remove(LOG_FILE)  # Clear previous log if it exists
-    print("Starting internet connectivity monitor...")
-    monitor_connectivity()
-    print(f"Monitoring completed. Log saved to {LOG_FILE}.")
+    parser = argparse.ArgumentParser(description="Internet Connectivity Monitor")
+    parser.add_argument("--hosts", nargs="+", default=["8.8.8.8", "1.1.1.1"], help="List of hosts to monitor (default: Google and Cloudflare DNS)")
+    parser.add_argument("--interval", type=int, default=10, help="Interval between checks in seconds (default: 10)")
+    parser.add_argument("--duration", type=int, default=3600, help="Monitoring duration in seconds (default: 1 hour)")
+    parser.add_argument("--log-file", type=str, default="internet_connectivity_log.txt", help="Path to the log file (default: internet_connectivity_log.txt)")
+
+    args = parser.parse_args()
+    if os.path.exists(args.log_file):
+        os.remove(args.log_file)  # Clear previous log if it exists
+
+    print(f"Starting monitoring for hosts: {', '.join(args.hosts)}")
+    monitor_connectivity(args.log_file, args.hosts, args.interval, args.duration)
+    print(f"Monitoring completed. Log saved to {args.log_file}.")
