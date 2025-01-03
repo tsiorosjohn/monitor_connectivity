@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.env
+
+# PyCharm
+.idea/
+*.iml
+
+# Logs
+*.log
+*.txt
+*.csv
+
+# Virtual Environment
+venv/
+env/
+
+# Others
+.DS_Store
+latency_plot.png
