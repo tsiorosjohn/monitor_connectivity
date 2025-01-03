@@ -52,10 +52,10 @@ def analyze_log(log_file):
                 if status == "Offline":
                     offline_times.append(time_entry)
 
-    return times, latencies, packet_losses, offline_times
+    return times, latencies, packet_losses, offline_times, host
 
 
-def plot_latency(times, latencies, packet_losses, offline_times):
+def plot_latency(times, latencies, packet_losses, offline_times, host):
     """
     Plots latency and packet loss, with offline periods highlighted.
     """
@@ -87,11 +87,19 @@ def plot_latency(times, latencies, packet_losses, offline_times):
     lines_2, labels_2 = ax2.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc="upper left")
 
-    # Add title and layout adjustments
-    plt.title("Network Latency and Packet Loss Over Time")
-    fig.tight_layout()
+    # Extract date range for the title
+    if times:
+        start_date = times[0].strftime("%Y-%m-%d %H:%M:%S")
+        end_date = times[-1].strftime("%Y-%m-%d %H:%M:%S")
+        date_range = f"{start_date} to {end_date}"
+    else:
+        date_range = "No Data Available"
 
-    # Save and show the plot
+    # Add title with date range
+    plt.title(f"Network Latency and Packet Loss Over Time towards host: {host} \n({date_range})")
+
+    # Adjust layout and save the plot
+    fig.tight_layout()
     plt.savefig("latency_and_packet_loss_plot.png")
     plt.show()
 
@@ -105,7 +113,7 @@ def main():
         print(f"Log file {args.log_file} does not exist.")
         return
 
-    times, latencies, packet_losses, offline_times = analyze_log(args.log_file)
+    times, latencies, packet_losses, offline_times, host = analyze_log(args.log_file)
 
     # Display summary
     print(f"Log Analysis Summary for {args.log_file}:")
@@ -120,7 +128,7 @@ def main():
     print(f"Max packet loss: {max(filtered_packet_losses) if filtered_packet_losses else 'N/A'}%")
 
     # Plot data
-    plot_latency(times, latencies, packet_losses, offline_times)
+    plot_latency(times, latencies, packet_losses, offline_times, host)
     print("Latency and packet loss plot saved as 'latency_and_packet_loss_plot.png'.")
 
 
